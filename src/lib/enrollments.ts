@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { Enrollment, LessonProgress } from '@/types';
 
 export async function enrollInCourse(
@@ -6,10 +6,10 @@ export async function enrollInCourse(
 ): Promise<Enrollment | null> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('enrollments')
     .insert({
       user_id: user.id,
@@ -21,7 +21,7 @@ export async function enrollInCourse(
 
   if (error) {
     if (error.code === '23505') {
-      const { data: existing } = await supabase
+      const { data: existing } = await getSupabase()
         .from('enrollments')
         .select('*')
         .eq('user_id', user.id)
@@ -39,10 +39,10 @@ export async function enrollInCourse(
 export async function getUserEnrollments(): Promise<Enrollment[]> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('enrollments')
     .select(
       `
@@ -64,10 +64,10 @@ export async function getUserEnrollments(): Promise<Enrollment[]> {
 export async function isUserEnrolled(courseId: string): Promise<boolean> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return false;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('enrollments')
     .select('id')
     .eq('user_id', user.id)
@@ -88,10 +88,10 @@ export async function markLessonComplete(
 ): Promise<LessonProgress | null> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('lesson_progress')
     .upsert(
       {
@@ -121,10 +121,10 @@ export async function updateLessonProgress(
 ): Promise<LessonProgress | null> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('lesson_progress')
     .upsert(
       {
@@ -152,10 +152,10 @@ export async function getLessonProgress(
 ): Promise<LessonProgress | null> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('lesson_progress')
     .select('*')
     .eq('user_id', user.id)
@@ -177,11 +177,11 @@ export async function getCourseProgress(courseId: string): Promise<{
 }> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user) return { completedLessons: 0, totalLessons: 0, percentage: 0 };
 
   // 1. Отримуємо всі модулі курсу
-  const { data: modules, error: modulesError } = await supabase
+  const { data: modules, error: modulesError } = await getSupabase()
     .from('modules')
     .select('id')
     .eq('course_id', courseId);
@@ -197,7 +197,7 @@ export async function getCourseProgress(courseId: string): Promise<{
 
   // 2. Отримуємо всі уроки цих модулів
   const moduleIds = modules.map((m) => m.id);
-  const { data: lessons, error: lessonsError } = await supabase
+  const { data: lessons, error: lessonsError } = await getSupabase()
     .from('lessons')
     .select('id')
     .in('module_id', moduleIds);
@@ -215,7 +215,7 @@ export async function getCourseProgress(courseId: string): Promise<{
 
   // 3. Отримуємо прогрес користувача за цими уроками
   const lessonIds = lessons.map((l) => l.id);
-  const { data: progress, error: progressError } = await supabase
+  const { data: progress, error: progressError } = await getSupabase()
     .from('lesson_progress')
     .select('completed')
     .eq('user_id', user.id)
@@ -241,7 +241,7 @@ export async function getUserStatistics(): Promise<{
 }> {
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getSupabase().auth.getUser();
   if (!user)
     return {
       totalEnrolled: 0,
@@ -251,7 +251,7 @@ export async function getUserStatistics(): Promise<{
     };
 
   // Get user's enrollments
-  const { data: enrollments, error: enrollmentsError } = await supabase
+  const { data: enrollments, error: enrollmentsError } = await getSupabase()
     .from('enrollments')
     .select('id, completed, course_id')
     .eq('user_id', user.id);
@@ -270,7 +270,7 @@ export async function getUserStatistics(): Promise<{
   const completedCourses = enrollments?.filter((e) => e.completed).length || 0;
 
   // Get total lessons watched (progress entries)
-  const { data: progress, error: progressError } = await supabase
+  const { data: progress, error: progressError } = await getSupabase()
     .from('lesson_progress')
     .select('id')
     .eq('user_id', user.id);
@@ -300,7 +300,7 @@ export async function getUserStatistics(): Promise<{
   const courseIds = enrollments!.map((e) => e.course_id);
 
   // Get all modules for these courses
-  const { data: modules, error: modulesError } = await supabase
+  const { data: modules, error: modulesError } = await getSupabase()
     .from('modules')
     .select('id')
     .in('course_id', courseIds);
@@ -318,7 +318,7 @@ export async function getUserStatistics(): Promise<{
   const moduleIds = (modules || []).map((m) => m.id);
 
   // Get all lessons for these modules and sum duration
-  const { data: lessons, error: lessonsError } = await supabase
+  const { data: lessons, error: lessonsError } = await getSupabase()
     .from('lessons')
     .select('duration_minutes')
     .in('module_id', moduleIds);

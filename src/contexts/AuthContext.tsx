@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 
 interface AuthContextType {
   user: User | null
@@ -25,12 +25,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { session } } = await getSupabase().auth.getSession()
       setSession(session)
       setUser(session?.user ?? null)
 
       if (session?.user) {
-        const { data: isAdmin } = await supabase.rpc('get_user_admin_status', {
+        const { data: isAdmin } = await getSupabase().rpc('get_user_admin_status', {
           user_id: session.user.id
         })
         setIsAdmin(isAdmin ?? false)
@@ -41,13 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getSession()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    const { data: { subscription } } = getSupabase().auth.onAuthStateChange(
       async (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
 
         if (session?.user) {
-          const { data: isAdmin } = await supabase.rpc('get_user_admin_status', {
+          const { data: isAdmin } = await getSupabase().rpc('get_user_admin_status', {
             user_id: session.user.id
           })
           setIsAdmin(isAdmin ?? false)
@@ -63,12 +63,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await getSupabase().auth.signInWithPassword({ email, password })
     return { error }
   }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { error } = await getSupabase().auth.signUp({
       email,
       password,
       options: {
@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
+    await getSupabase().auth.signOut()
   }
 
   const isAuthenticated = !!user

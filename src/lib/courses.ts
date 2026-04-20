@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase'
+import { getSupabase } from '@/lib/supabase'
 import { Course, CourseWithDetails, Module, Lesson } from '@/types'
 import { Database } from '@/lib/database.types'
 
@@ -15,7 +15,7 @@ type LessonUpdate = Database['public']['Tables']['lessons']['Update']
 type ModuleRow = Database['public']['Tables']['modules']['Row']
 
 export async function getCourses(): Promise<Course[]> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('courses')
     .select(`
       *,
@@ -39,7 +39,7 @@ export async function getCourses(): Promise<Course[]> {
 }
 
 export async function getCourseById(id: string): Promise<CourseWithDetails | null> {
-  const { data: courseData, error: courseError } = await supabase
+  const { data: courseData, error: courseError } = await getSupabase()
     .from('courses')
     .select('*')
     .eq('id', id)
@@ -48,7 +48,7 @@ export async function getCourseById(id: string): Promise<CourseWithDetails | nul
   if (courseError) return null
   if (!courseData) return null
 
-  const { data: modulesData, error: modulesError } = await supabase
+  const { data: modulesData, error: modulesError } = await getSupabase()
     .from('modules')
     .select('*')
     .eq('course_id', id)
@@ -58,7 +58,7 @@ export async function getCourseById(id: string): Promise<CourseWithDetails | nul
 
   const modulesWithLessons = await Promise.all(
     ((modulesData ?? []) as Module[]).map(async (module) => {
-      const { data: lessonsData } = await supabase
+      const { data: lessonsData } = await getSupabase()
         .from('lessons')
         .select('*')
         .eq('module_id', module.id)
@@ -82,10 +82,10 @@ export async function createCourse(courseData: {
   description?: string | null
   image_url?: string | null
 }): Promise<Course | null> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await getSupabase().auth.getUser()
   if (!user) return null
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('courses')
     .insert({
       ...courseData,
@@ -106,7 +106,7 @@ export async function updateCourse(
   id: string,
   data: { title?: string; description?: string | null; image_url?: string | null }
 ): Promise<Course | null> {
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await getSupabase()
     .from('courses')
     .update(data as CourseUpdate)
     .eq('id', id)
@@ -122,7 +122,7 @@ export async function updateCourse(
 }
 
 export async function deleteCourse(id: string): Promise<boolean> {
-  const { error } = await supabase.from('courses').delete().eq('id', id)
+  const { error } = await getSupabase().from('courses').delete().eq('id', id)
   if (error) {
     console.error('Error deleting course:', error)
     return false
@@ -136,7 +136,7 @@ export async function createModule(moduleData: {
   description?: string | null
   order_index: number
 }): Promise<Module | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('modules')
     .insert(moduleData as ModuleInsert)
     .select()
@@ -154,7 +154,7 @@ export async function updateModule(
   id: string,
   data: { title?: string; description?: string | null; order_index?: number }
 ): Promise<Module | null> {
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await getSupabase()
     .from('modules')
     .update(data as ModuleUpdate)
     .eq('id', id)
@@ -170,7 +170,7 @@ export async function updateModule(
 }
 
 export async function deleteModule(id: string): Promise<boolean> {
-  const { error } = await supabase.from('modules').delete().eq('id', id)
+  const { error } = await getSupabase().from('modules').delete().eq('id', id)
   if (error) {
     console.error('Error deleting module:', error)
     return false
@@ -186,7 +186,7 @@ export async function createLesson(lessonData: {
   order_index: number
   duration_minutes?: number | null
 }): Promise<Lesson | null> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from('lessons')
     .insert(lessonData as LessonInsert)
     .select()
@@ -210,7 +210,7 @@ export async function updateLesson(
     duration_minutes?: number | null
   }
 ): Promise<Lesson | null> {
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await getSupabase()
     .from('lessons')
     .update(data as LessonUpdate)
     .eq('id', id)
@@ -226,7 +226,7 @@ export async function updateLesson(
 }
 
 export async function deleteLesson(id: string): Promise<boolean> {
-  const { error } = await supabase.from('lessons').delete().eq('id', id)
+  const { error } = await getSupabase().from('lessons').delete().eq('id', id)
   if (error) {
     console.error('Error deleting lesson:', error)
     return false
