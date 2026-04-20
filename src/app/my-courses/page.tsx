@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Course } from '@/types';
+import { Course, Enrollment } from '@/types';
 import { getUserEnrollments, getCourseProgress } from '@/lib/enrollments';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
