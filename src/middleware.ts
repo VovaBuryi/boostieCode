@@ -8,6 +8,7 @@ export async function middleware(req: NextRequest) {
       headers: req.headers,
     },
   });
+  // asd
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
