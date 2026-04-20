@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { Course, CourseWithDetails } from '@/types'
+import { Course, CourseWithDetails, Module, Lesson } from '@/types'
 import { Database } from '@/lib/database.types'
 
 type CourseRow = Database['public']['Tables']['courses']['Row']
