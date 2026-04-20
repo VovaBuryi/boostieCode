@@ -1,36 +1,161 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BoostieCode - Платформа для навчання
 
-## Getting Started
+Повноцінна платформа для навчання з роллю адміністратора та користувача, побудована на Next.js з використанням Supabase як бекенд.
 
-First, run the development server:
+## Функціонал
+
+### Для адміністратора:
+- Додавання/редагування/видалення курсів
+- Керування модулями та уроками
+- Завантаження зображень для курсів
+- Створення контенту (текст, відео посилання)
+- Підтримка української мови
+
+### Для користувача:
+- Реєстрація та авторизація
+- Перегляд доступних курсів
+- Запис на курси
+- Проходження уроків
+- Відстеження прогресу
+- Статистика навчання
+- Позначення уроків як пройдених
+
+## Технології
+
+- **Frontend**: Next.js 15, TypeScript, Tailwind CSS
+- **Бекенд**: Supabase (база даних, автентифікація)
+- **UI компоненти**: Lucide React (іконки)
+- **Стану**: React Context API
+
+## Встановлення та налаштування
+
+### 1. Клонування та встановлення залежностей
+
+```bash
+cd learning-platform
+npm install
+```
+
+### 2. Налаштування Supabase
+
+1. Створіть новий проект на [Supabase](https://supabase.com)
+2. У секції **SQL Editor** виконайте скрипт з файлу `supabase-schema.sql`
+3. Отримайте URL та Anon Key з налаштувань проекту (Project Settings → API)
+
+### 3. Налаштування змінних середовища
+
+Створіть файл `.env.local` на основі `.env.local.example`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### 4. Запуск проекту
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Відкрийте [http://localhost:3000](http://localhost:3000) у браузері.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Структура проекту
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── admin/              # Адмін-панель
+│   │   ├── page.tsx        # Головна адмін-панель
+│   │   └── courses/        # Керування курсами
+│   │       ├── page.tsx    # Список курсів
+│   │       └── [id]/       # Деталі курсу
+│   │           └── lessons/
+│   │               └── page.tsx  # Керування уроками
+│   ├── course/             # Перегляд курсу (користувач)
+│   │   └── [id]/
+│   │       └── page.tsx
+│   ├── my-courses/         # Мої курси та статистика
+│   │   └── page.tsx
+│   ├── login/              # Сторінка логінації
+│   │   └── page.tsx
+│   ├── layout.tsx          # Головний layout
+│   └── page.tsx            # Головна сторінка
+├── components/             # React компоненти
+│   ├── AuthProvider.tsx    # Контекст автентифікації
+│   ├── CourseCard.tsx      # Картка курсу
+│   ├── Navbar.tsx          # Навігація
+│   └── ProtectedRoute.tsx  # Захищені маршрути
+├── lib/                    # Utils
+│   ├── supabase.ts         # Клієнт Supabase
+│   ├── database.types.ts   # TypeScript типи
+│   ├── courses.ts          # API функції для курсів
+│   └── enrollments.ts      # API функції для записів
+├── types/                  # TypeScript типи
+│   └── index.ts
+└── middleware.ts           # Middleware для захисту маршрутів
+```
 
-## Learn More
+## База даних
 
-To learn more about Next.js, take a look at the following resources:
+### Основні таблиці:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **profiles** - профілі користувачів (розширення auth.users)
+- **courses** - курси
+- **modules** - модулі (розділи) курсів
+- **lessons** - уроки (контент)
+- **enrollments** - записи користувачів на курси
+- **lesson_progress** - прогрес пройдення уроків
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Ролі користувачів
 
-## Deploy on Vercel
+1. **Адміністратор** (`is_admin = true`)
+   - Доступ до `/admin/*`
+   - Можливість створювати/редагувати/видаляти курси та матеріали
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. **Користувач** (`is_admin = false`)
+   - Перегляд курсів
+   - Запис на курси
+   - Відстеження прогресу
+   - Перегляд статистики
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## API Endpoints (Server Actions)
+
+### Курси:
+- `getCourses()` - отримати всі курси
+- `getCourseById(id)` - отримати курс за ID з модулями та уроками
+- `createCourse(data)` - створити курс (admin)
+- `updateCourse(id, data)` - оновити курс (admin)
+- `deleteCourse(id)` - видалити курс (admin)
+
+### Модулі та уроки:
+- Аналогічні функції для роботи з модулями та уроками
+
+### Записи та прогрес:
+- `enrollInCourse(courseId)` - записатися на курс
+- `getUserEnrollments()` - отримати мої курси
+- `markLessonComplete(lessonId)` - позначити урок як пройдений
+- `updateLessonProgress(lessonId, position)` - оновити позицію у відео
+- `getCourseProgress(courseId)` - отримати прогрес курсу
+- `getUserStatistics()` - отримати загальну статистику
+
+## Розширення функціоналу
+
+**Можливі покращення:**
+- Тести та квізи після уроків
+- Система коментарів та обговорень
+- Нотифікації email
+- Пакетне завантаження контенту
+- Видача сертифікатів
+- Групи та інтеграція з Slack/Discord
+- Реальний відеоплеєр
+- system for quizzes and assignments
+
+## Примітки
+
+- Для роботи з Supabase потрібно активований акаунт
+- Перший адмін створюється автоматично - потрібно вручну змінити `is_admin = true` для потрібного користувача в таблиці `profiles`
+- Рекомендовано налаштувати Email автентифікацію в Supabase
+
+## Підтримка
+
+Для питань та пропозиций створюйте issues у репозиторії.
