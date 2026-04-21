@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -48,9 +49,14 @@ function ToolbarButton({
 interface LessonEditorProps {
   content: string;
   onChange: (html: string) => void;
+  placeholder?: string;
 }
 
-export default function LessonEditor({ content, onChange }: LessonEditorProps) {
+export default function LessonEditor({
+  content,
+  onChange,
+  placeholder = 'Введіть вміст уроку...',
+}: LessonEditorProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -59,15 +65,24 @@ export default function LessonEditor({ content, onChange }: LessonEditorProps) {
         },
       }),
       Placeholder.configure({
-        placeholder: 'Введіть вміст уроку...',
+        placeholder,
       }),
     ],
     content: content || '',
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      console.log('LessonEditor onChange:', html);
+      onChange(html);
     },
   });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      console.log('LessonEditor useEffect - setting content:', content);
+      editor.commands.setContent(content || '');
+    }
+  }, [content, editor]);
 
   if (!editor) {
     return null;

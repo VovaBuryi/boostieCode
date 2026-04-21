@@ -3,49 +3,34 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Course } from '@/types';
-import { getCourses } from '@/lib/courses';
-import { enrollInCourse, isUserEnrolled } from '@/lib/enrollments';
+import { fetchCourses } from '@/lib/api';
 import Navbar from '@/components/Navbar';
 import CourseCard from '@/components/CourseCard';
 import { PlusCircle, BookOpen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link'; // Використовуйте Link замість <a> для SPA навігації
+import Link from 'next/link';
 
 export default function Home() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin, isAuthenticated } = useAuth();
+  const { user, isAdmin } = useAuth();
   const router = useRouter();
 
   const loadCourses = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getCourses();
-
-      // Якщо користувач залогінений і не адмін, перевіряємо підписки паралельно
-      if (user && !isAdmin) {
-        const coursesWithEnrollment = await Promise.all(
-          data.map(async (course) => {
-            const enrolled = await isUserEnrolled(course.id);
-            return { ...course, enrolled }; // Створюємо новий об'єкт
-          }),
-        );
-        setCourses(coursesWithEnrollment);
-      } else {
-        setCourses(data);
-      }
+      console.log('Loading courses...');
+      const data = await fetchCourses();
+      console.log('Courses loaded:', data);
+      setCourses(data);
     } catch (error) {
       console.error('Error loading courses:', error);
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin]);
+  }, []);
 
   useEffect(() => {
-    // Якщо адмін заходить на головну, він бачить всі курси.
-    // Якщо звичайний юзер заходить — можливо, ви хочете редирект,
-    // але зазвичай головна доступна всім. Залишаю завантаження:
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCourses();
   }, [loadCourses]);
 
@@ -56,11 +41,23 @@ export default function Home() {
     }
 
     try {
-      const enrollment = await enrollInCourse(courseId);
-      if (enrollment) {
+      const res = await fetch('/api/enroll', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      });
+      
+      console.log('Enroll response status:', res.status);
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Enroll success:', data);
         setCourses((prev) =>
           prev.map((c) => (c.id === courseId ? { ...c, enrolled: true } : c)),
         );
+        alert('Записано! Оновіть сторінку.');
+      } else if (res.status === 401) {
+        router.push('/login');
       }
     } catch (error) {
       console.error('Enrollment failed:', error);

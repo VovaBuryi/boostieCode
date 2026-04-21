@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSession } from 'next-auth/react';
 import { Course } from '@/types';
-import { getCourses, deleteCourse } from '@/lib/courses';
 import Navbar from '@/components/Navbar';
 import {
   PlusCircle,
@@ -21,7 +20,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Отримуємо дані користувача та його роль з контексту
-  const { user, isAdmin, isAuthenticated } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   // Реф для запобігання оновленню стану демонтованого компонента
@@ -30,7 +29,8 @@ export default function AdminDashboard() {
   const loadCourses = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getCourses();
+      const res = await fetch('/api/admin/courses');
+      const data = await res.json();
       if (isMountedRef.current) {
         setCourses(data);
       }
@@ -44,36 +44,25 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    isMountedRef.current = true;
-
-    // Захист роуту: якщо користувач завантажився, але він не адмін — редирект
-    if (isAuthenticated !== undefined) {
-      if (!isAuthenticated || !isAdmin) {
-        router.push('/'); // Відправляємо на головну, якщо немає прав
-      } else {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        loadCourses();
-      }
+    if (status === 'loading') return;
+    if (!session?.user?.isAdmin) {
+      router.push('/');
+    } else {
+      loadCourses();
     }
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [isAuthenticated, isAdmin, router, loadCourses]);
+  }, [status, session, router, loadCourses]);
 
   const handleDeleteCourse = async (id: string) => {
     if (
       !confirm(
-        'Ви впевнені, що хочете видалити цей курс? Це видалить усі пов’язані модулі та уроки!',
+        "Ви впевнені, що хочете видалити цей курс? Це видалить усі пов'язані модулі та уроки!",
       )
     )
       return;
 
     try {
-      const success = await deleteCourse(id);
-      if (success) {
-        setCourses((prev) => prev.filter((c) => c.id !== id));
-      }
+      await fetch(`/api/admin/courses?id=${id}`, { method: 'DELETE' });
+      setCourses((prev) => prev.filter((c) => c.id !== id));
     } catch (error) {
       console.error('Помилка видалення:', error);
       alert('Не вдалося видалити курс. Спробуйте ще раз.');
@@ -81,7 +70,7 @@ export default function AdminDashboard() {
   };
 
   // Стан завантаження перевірки аутентифікації
-  if (!isAuthenticated || !isAdmin) {
+  if (status === 'loading' || !session?.user?.isAdmin) {
     return (
       <div className='min-h-screen flex items-center justify-center bg-gray-50'>
         <div className='flex flex-col items-center gap-4'>
@@ -103,7 +92,7 @@ export default function AdminDashboard() {
               Адмін-панель
             </h1>
             <p className='text-gray-600'>
-              Вітаємо, {user?.email}. Керуйте курсами та навчальними
+              Вітаємо, {session?.user?.email}. Керуйте курсами та навчальними
               матеріалами.
             </p>
           </div>
@@ -159,7 +148,7 @@ export default function AdminDashboard() {
                 </p>
                 <p className='text-3xl font-bold text-gray-900'>
                   {/* Зазвичай тут реальний запит до БД, поки використовуємо заповнювач */}
-                  {courses.length * 12}
+                  {courses.length}
                 </p>
               </div>
               <div className='p-3 bg-blue-50 rounded-lg'>

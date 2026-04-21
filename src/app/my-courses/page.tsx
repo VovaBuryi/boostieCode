@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Course, Enrollment } from '@/types';
-import { getUserEnrollments, getCourseProgress } from '@/lib/enrollments';
+import { getUserEnrollments, getCoursesProgress } from '@/lib/enrollments';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import {
@@ -45,12 +45,13 @@ export default function MyCoursesPage() {
   const loadEnrollments = useCallback(async () => {
     try {
       const data = await getUserEnrollments();
-      const enrollmentsWithProgress = await Promise.all(
-        data.map(async (enrollment) => {
-          const progress = await getCourseProgress(enrollment.course_id);
-          return { enrollment, progress };
-        }),
-      );
+      const courseIds = data.map(e => e.course_id);
+      const progressMap = await getCoursesProgress(courseIds);
+      
+      const enrollmentsWithProgress = data.map(enrollment => ({
+        enrollment,
+        progress: progressMap.get(enrollment.course_id) || { completedLessons: 0, totalLessons: 0, percentage: 0 }
+      }));
       setEnrollments(enrollmentsWithProgress);
     } catch (error) {
       console.error('Error loading enrollments:', error);

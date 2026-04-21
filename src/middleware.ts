@@ -1,69 +1,27 @@
-import { createServerClient } from '@supabase/ssr';
+import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
-  let res = NextResponse.next({
-    request: {
-      headers: req.headers,
-    },
-  });
-  // asd
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            req.cookies.set(name, value),
-          );
-          res = NextResponse.next({
-            request: {
-              headers: req.headers,
-            },
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options),
-          );
-        },
-      },
-    },
-  );
-
-  // Використовуємо getUser() замість getSession() для більшої надійності
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const { pathname } = req.nextUrl;
-
-  // console.log(`MW DEBUG: Шлях: ${pathname}, Юзер: ${user?.email || 'немає'}`);
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   if (pathname.startsWith('/admin')) {
-    if (!user) {
-      // console.log('MW DEBUG: Редирект на логін (немає юзера)');
+    if (!token) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single();
-
-    if (!profile?.is_admin) {
-      // console.log('MW DEBUG: Редирект на головну (не адмін)');
+    const isAdmin = (token as { isAdmin?: boolean }).isAdmin;
+    if (!isAdmin) {
       return NextResponse.redirect(new URL('/', req.url));
     }
   }
 
-  if (pathname.startsWith('/login') && user) {
+  if (pathname.startsWith('/login') && token) {
     return NextResponse.redirect(new URL('/', req.url));
   }
 
-  return res;
+  return NextResponse.next();
 }
 
 export const config = {

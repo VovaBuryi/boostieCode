@@ -2,13 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Course } from '@/types';
-import {
-  getCourses,
-  createCourse,
-  updateCourse,
-  deleteCourse,
-} from '@/lib/courses';
 import Navbar from '@/components/Navbar';
+import LessonEditor from '@/components/LessonEditor';
 import { PlusCircle, Save, Trash2, Edit, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -22,12 +17,14 @@ export default function AdminCoursesPage() {
     description: '',
     image_url: '',
   });
+  const [descriptionHtml, setDescriptionHtml] = useState('');
 
   const isMountedRef = useRef(true);
 
   const loadCourses = useCallback(async () => {
     try {
-      const data = await getCourses();
+      const res = await fetch('/api/admin/courses');
+      const data = await res.json();
       if (isMountedRef.current) {
         setCourses(data);
         setLoading(false);
@@ -42,7 +39,6 @@ export default function AdminCoursesPage() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCourses();
     return () => {
       isMountedRef.current = false;
@@ -54,25 +50,47 @@ export default function AdminCoursesPage() {
 
     try {
       if (editingCourse) {
-        const updated = await updateCourse(editingCourse.id, {
-          title: formData.title,
-          description: formData.description || null,
-          image_url: formData.image_url || null,
+        const res = await fetch(`/api/admin/courses/${editingCourse.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
         });
-        if (updated) {
-          setCourses(
-            courses.map((c) => (c.id === editingCourse.id ? updated : c)),
-          );
-          setEditingCourse(null);
+        const raw = await res.text();
+        const data = raw ? JSON.parse(raw) : {};
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to update course');
         }
+        setCourses(
+          courses.map((c) =>
+            c.id === editingCourse.id
+              ? { ...c, ...formData, description: descriptionHtml }
+              : c,
+          ),
+        );
+        setEditingCourse(null);
       } else {
-        const newCourse = await createCourse({
-          title: formData.title,
-          description: formData.description || null,
-          image_url: formData.image_url || null,
+        const res = await fetch('/api/admin/courses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...formData, description: descriptionHtml }),
         });
-        if (newCourse) {
-          setCourses([newCourse, ...courses]);
+        const raw = await res.text();
+        const data = raw ? JSON.parse(raw) : {};
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to create course');
+        }
+        if (data.id) {
+          setCourses([
+            {
+              ...formData,
+              description: descriptionHtml,
+              id: data.id,
+              created_by: '',
+              created_at: '',
+              updated_at: '',
+            },
+            ...courses,
+          ]);
         }
       }
 
@@ -89,20 +107,27 @@ export default function AdminCoursesPage() {
       description: course.description || '',
       image_url: course.image_url || '',
     });
+    setDescriptionHtml(course.description || '');
     setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Ви впевнені, що хочете видалити цей курс?')) return;
 
-    const success = await deleteCourse(id);
-    if (success) {
-      setCourses(courses.filter((c) => c.id !== id));
+    const res = await fetch(`/api/admin/courses?id=${id}`, {
+      method: 'DELETE',
+    });
+    const raw = await res.text();
+    const data = raw ? JSON.parse(raw) : {};
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to delete course');
     }
+    setCourses(courses.filter((c) => c.id !== id));
   };
 
   const resetForm = () => {
     setFormData({ title: '', description: '', image_url: '' });
+    setDescriptionHtml('');
     setEditingCourse(null);
     setShowForm(false);
   };
@@ -142,7 +167,6 @@ export default function AdminCoursesPage() {
           )}
         </div>
 
-        {/* Form */}
         {showForm && (
           <div className='bg-white rounded-lg shadow p-6 mb-8'>
             <h2 className='text-xl font-semibold mb-4'>
@@ -168,13 +192,13 @@ export default function AdminCoursesPage() {
                 <label className='block text-sm font-medium text-gray-700 mb-1'>
                   Опис
                 </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  rows={3}
-                  className='w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none'
+                <LessonEditor
+                  content={descriptionHtml}
+                  onChange={(html) => {
+                    setDescriptionHtml(html);
+                    setFormData({ ...formData, description: html });
+                  }}
+                  placeholder='Введіть опис курсу...'
                 />
               </div>
 
@@ -213,7 +237,6 @@ export default function AdminCoursesPage() {
           </div>
         )}
 
-        {/* Courses List */}
         {loading ? (
           <div className='flex items-center justify-center py-20'>
             <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600'></div>

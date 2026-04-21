@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, use, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CourseWithDetails, Lesson } from '@/types';
-import { getCourseById } from '@/lib/courses';
-import { getCourseProgress, markLessonComplete, getLessonProgress } from '@/lib/enrollments';
+import { fetchCourse } from '@/lib/api';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
 import {
@@ -31,37 +30,40 @@ export default function CoursePage({
     totalLessons: 0,
     percentage: 0,
   });
-  const [lessonProgress, setLessonProgress] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [lessonProgress, setLessonProgress] = useState<Record<string, boolean>>({});
 
   const isMountedRef = useRef(true);
 
   const loadCourse = useCallback(async () => {
     try {
-      const data = await getCourseById(resolvedParams.id);
+      const data = await fetchCourse(resolvedParams.id);
       if (isMountedRef.current && data) {
         setCourse(data);
-        const totalLessons = data.modules.reduce(
+        
+        const total = data.modules.reduce(
           (acc, m) => acc + m.lessons.length,
           0,
         );
-        const progressData = await getCourseProgress(resolvedParams.id);
-        setProgress({ ...progressData, totalLessons });
+        
+        const completed = data.modules.reduce(
+          (acc, m) => acc + m.lessons.filter(l => l.completed).length,
+          0,
+        );
+        
+        setProgress({
+          completedLessons: completed,
+          totalLessons: total,
+          percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+        });
 
-        // Fetch individual lesson progress
-        const allLessonIds = data.modules.flatMap((m) =>
-          m.lessons.map((l) => l.id),
-        );
         const lessonProgressMap: Record<string, boolean> = {};
-        await Promise.all(
-          allLessonIds.map(async (lessonId) => {
-            const lessonProgress = await getLessonProgress(lessonId);
-            if (lessonProgress?.completed) {
-              lessonProgressMap[lessonId] = true;
+        data.modules.forEach(m => {
+          m.lessons.forEach(l => {
+            if (l.completed) {
+              lessonProgressMap[l.id] = true;
             }
-          }),
-        );
+          });
+        });
         setLessonProgress(lessonProgressMap);
 
         if (data.modules.length > 0 && data.modules[0].lessons.length > 0) {
@@ -79,7 +81,6 @@ export default function CoursePage({
 
   useEffect(() => {
     isMountedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadCourse();
     return () => {
       isMountedRef.current = false;
@@ -93,11 +94,22 @@ export default function CoursePage({
   const handleMarkComplete = async (lessonId: string) => {
     if (!user) return;
 
-    const result = await markLessonComplete(lessonId, true);
-    if (result) {
-      setLessonProgress({ ...lessonProgress, [lessonId]: true });
-      const newProgress = await getCourseProgress(resolvedParams.id);
-      setProgress(newProgress);
+    try {
+      const response = await fetch(`/api/lessons/${lessonId}/complete`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        setLessonProgress({ ...lessonProgress, [lessonId]: true });
+        const total = course?.modules.reduce((acc, m) => acc + m.lessons.length, 0) || 0;
+        const completed = Object.keys({ ...lessonProgress, [lessonId]: true }).length;
+        setProgress({
+          completedLessons: completed,
+          totalLessons: total,
+          percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+        });
+      }
+    } catch (error) {
+      console.error('Error marking lesson complete:', error);
     }
   };
 
@@ -136,7 +148,6 @@ export default function CoursePage({
       <Navbar />
 
       <main className='max-w-7xl mx-auto px-4 py-8'>
-        {/* Course Header */}
         <div className='mb-8'>
           <Link
             href='/'
@@ -152,7 +163,6 @@ export default function CoursePage({
             <p className='text-gray-600 mb-4'>{course.description}</p>
           )}
 
-          {/* Progress Bar */}
           <div className='bg-white rounded-lg p-4 shadow-sm'>
             <div className='flex items-center justify-between mb-2'>
               <span className='text-sm font-medium text-gray-700'>
@@ -178,7 +188,6 @@ export default function CoursePage({
         </div>
 
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-          {/* Course Content - Modules & Lessons */}
           <div className='lg:col-span-1'>
             <div className='bg-white rounded-lg shadow'>
               <div className='px-4 py-3 border-b bg-gray-50'>
@@ -229,7 +238,6 @@ export default function CoursePage({
             </div>
           </div>
 
-          {/* Lesson Viewer */}
           <div className='lg:col-span-2'>
             {selectedLesson ? (
               <div className='bg-white rounded-lg shadow'>
@@ -240,7 +248,6 @@ export default function CoursePage({
                 </div>
 
                 <div className='p-6'>
-                  {/* Video Placeholder */}
                   {selectedLesson.video_url ? (
                     <div className='aspect-video bg-gray-900 rounded-lg mb-6 flex items-center justify-center'>
                       <PlayCircle className='h-16 w-16 text-white' />
@@ -254,7 +261,6 @@ export default function CoursePage({
                     </div>
                   )}
 
-                  {/* Lesson Content */}
                   {selectedLesson.content && (
                     <div className='prose max-w-none'>
                       <h3 className='text-lg font-semibold mb-2'>Опис уроку</h3>
@@ -265,7 +271,6 @@ export default function CoursePage({
                     </div>
                   )}
 
-                  {/* Lesson Actions */}
                   <div className='mt-8 flex items-center justify-between border-t pt-6'>
                     <div className='text-sm text-gray-500'>
                       {lessonProgress[selectedLesson.id] ? (

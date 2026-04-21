@@ -75,3 +75,14 @@ export interface UserProfile {
   is_admin: boolean
   role: 'admin' | 'user'
 }
+
+declare module 'next-auth' {
+  interface Session {
+    user: {
+      id: string
+      email: string
+      name?: string | null
+      isAdmin?: boolean
+    }
+  }
+}

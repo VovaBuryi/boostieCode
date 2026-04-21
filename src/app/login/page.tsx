@@ -34,8 +34,8 @@ export default function LoginPage() {
         if (error) {
           setError(error.message)
         } else {
-          setSuccess('Реєстрація успішна! Перевірте вашу електронну пошту для підтвердження.')
-          setTimeout(() => router.push('/'), 3000)
+          setSuccess('Реєстрація успішна! Тепер ви можете увійти.')
+          setIsRegister(false)
         }
       } else {
         const { error: signInError } = await signIn(email, password)
