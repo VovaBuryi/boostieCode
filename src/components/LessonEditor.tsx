@@ -71,15 +71,12 @@ export default function LessonEditor({
     content: content || '',
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      console.log('LessonEditor onChange:', html);
-      onChange(html);
+      onChange(editor.getHTML());
     },
   });
 
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
-      console.log('LessonEditor useEffect - setting content:', content);
       editor.commands.setContent(content || '');
     }
   }, [content, editor]);

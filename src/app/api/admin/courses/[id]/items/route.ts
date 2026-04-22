@@ -53,7 +53,6 @@ export async function POST(
     const type = formData.get('type') as string;
     const title = formData.get('title') as string;
     const description = formData.get('content') as string;
-    console.log('POST lesson - content:', description);
     const video_url = formData.get('video_url') as string;
     const order_index = parseInt(formData.get('order_index') as string) || 0;
     const duration_minutes = formData.get('duration_minutes') as string;

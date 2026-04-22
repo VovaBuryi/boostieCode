@@ -19,6 +19,7 @@ export interface Module {
   created_at: string
   updated_at: string
   lessons_count?: number
+  lessons?: Lesson[]
 }
 
 export interface Lesson {

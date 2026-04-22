@@ -64,11 +64,9 @@ export async function GET(
           [module.id]
         );
         const cleanLessons = lessonRows.map(l => {
-          console.log('Lesson content type:', typeof l.content, l.content?.constructor?.name);
           const obj: Record<string, unknown> = {};
           for (const key of Object.keys(l)) {
             if (l[key] instanceof Uint8Array || Buffer.isBuffer(l[key])) {
-              console.log('Converting buffer to string for', key);
               obj[key] = new TextDecoder('utf-8').decode(Buffer.from(l[key]));
             } else {
               obj[key] = l[key];
