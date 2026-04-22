@@ -11,6 +11,7 @@ function getPool(): Pool {
       user: dbConfig.user,
       password: dbConfig.password,
       database: dbConfig.database,
+      // Force 4-byte UTF-8 for emojis/symbols in TEXT fields.
       charset: 'utf8mb4',
       waitForConnections: true,
       connectionLimit: 10,
@@ -21,21 +22,36 @@ function getPool(): Pool {
   return pool;
 }
 
-
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function query<T extends RowDataPacket[]>(
   sql: string,
-  params?: unknown[]
+  params?: unknown[],
 ): Promise<T> {
-  const [rows] = await getPool().query<T>(sql, params as any[]);
-  return rows;
+  const connection = await getPool().getConnection();
+  try {
+    // Ensure read/write uses utf8mb4 for every request (avoids charset drift).
+    await connection.query('SET NAMES utf8mb4');
+    const [rows] = await connection.query<T>(sql, params as any[]);
+    return rows;
+  } finally {
+    connection.release();
+  }
 }
 
 export async function execute(
   sql: string,
-  params?: unknown[]
+  params?: unknown[],
 ): Promise<ResultSetHeader> {
-  const [result] = await getPool().query<ResultSetHeader>(sql, params as any[]);
-  return result;
+  const connection = await getPool().getConnection();
+  try {
+    // Ensure read/write uses utf8mb4 for every request (avoids charset drift).
+    await connection.query('SET NAMES utf8mb4');
+    const [result] = await connection.query<ResultSetHeader>(
+      sql,
+      params as any[],
+    );
+    return result;
+  } finally {
+    connection.release();
+  }
 }

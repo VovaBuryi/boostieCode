@@ -6,11 +6,11 @@ import { RowDataPacket } from 'mysql2/promise';
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id || !session.user.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -18,17 +18,17 @@ export async function GET(
   try {
     const modules = await query<RowDataPacket[]>(
       'SELECT * FROM modules WHERE course_id = ? ORDER BY order_index ASC',
-      [id]
+      [id],
     );
 
     const modulesWithLessons = await Promise.all(
       modules.map(async (module) => {
         const lessons = await query<RowDataPacket[]>(
           'SELECT * FROM lessons WHERE module_id = ? ORDER BY order_index ASC',
-          [module.id]
+          [module.id],
         );
         return { ...module, lessons };
-      })
+      }),
     );
 
     return NextResponse.json(modulesWithLessons);
@@ -40,10 +40,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id || !session.user.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -62,19 +62,26 @@ export async function POST(
       const modId = crypto.randomUUID();
       await execute(
         'INSERT INTO modules (id, course_id, title, description, order_index) VALUES (?, ?, ?, ?, ?)',
-        [modId, (await params).id, title, description || null, order_index]
+        [modId, (await params).id, title, description || null, order_index],
       );
       return NextResponse.json({ id: modId, success: true });
     } else if (type === 'lesson' && module_id) {
       const lessId = crypto.randomUUID();
-      const descBuffer = description ? Buffer.from(description, 'utf8') : null;
       await execute(
         'INSERT INTO lessons (id, module_id, title, content, video_url, order_index, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [lessId, module_id, title, descBuffer, video_url || null, order_index, duration_minutes || null]
+        [
+          lessId,
+          module_id,
+          title,
+          description || null,
+          video_url || null,
+          order_index,
+          duration_minutes || null,
+        ],
       );
       return NextResponse.json({ id: lessId, success: true });
     }
-    
+
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
   } catch (error) {
     console.error('Error:', error);
@@ -84,11 +91,11 @@ export async function POST(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id || !session.user.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -117,10 +124,10 @@ export async function DELETE(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions);
-  
+
   if (!session?.user?.id || !session.user.isAdmin) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -133,19 +140,24 @@ export async function PUT(
     const content = formData.get('content') as string;
     const video_url = formData.get('video_url') as string;
     const order_index = parseInt(formData.get('order_index') as string) || 0;
-    console.log('PUT lesson - content:', content);
     const duration_minutes = formData.get('duration_minutes') as string;
 
     if (type === 'module') {
       await execute(
         'UPDATE modules SET title = ?, description = ?, order_index = ? WHERE id = ?',
-        [title, content || null, order_index, itemId]
+        [title, content || null, order_index, itemId],
       );
     } else if (type === 'lesson') {
-      const contentBuffer = content ? Buffer.from(content, 'utf8') : null;
       await execute(
         'UPDATE lessons SET title = ?, content = ?, video_url = ?, order_index = ?, duration_minutes = ? WHERE id = ?',
-        [title, contentBuffer, video_url || null, order_index, duration_minutes || null, itemId]
+        [
+          title,
+          content || null,
+          video_url || null,
+          order_index,
+          duration_minutes || null,
+          itemId,
+        ],
       );
     }
 

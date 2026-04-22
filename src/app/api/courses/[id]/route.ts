@@ -36,14 +36,14 @@ interface LessonRow extends RowDataPacket {
 
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
   try {
     const courseRows = await query<CourseRow[]>(
       'SELECT * FROM courses WHERE id = ?',
-      [id]
+      [id],
     );
 
     if (courseRows.length === 0) {
@@ -51,40 +51,25 @@ export async function GET(
     }
 
     const courseData = courseRows[0];
-    
+
     const moduleRows = await query<ModuleRow[]>(
       'SELECT * FROM modules WHERE course_id = ? ORDER BY order_index ASC',
-      [id]
+      [id],
     );
 
     const modulesWithLessons = await Promise.all(
       moduleRows.map(async (module) => {
         const lessonRows = await query<LessonRow[]>(
           'SELECT * FROM lessons WHERE module_id = ? ORDER BY order_index ASC',
-          [module.id]
+          [module.id],
         );
-        const cleanLessons = lessonRows.map(l => {
-          const obj: Record<string, unknown> = {};
-          for (const key of Object.keys(l)) {
-            if (l[key] instanceof Uint8Array || Buffer.isBuffer(l[key])) {
-              obj[key] = new TextDecoder('utf-8').decode(Buffer.from(l[key]));
-            } else {
-              obj[key] = l[key];
-            }
-          }
-          return obj as LessonRow;
-        });
-        return { ...module, lessons: cleanLessons };
-      })
+        return { ...module, lessons: lessonRows };
+      }),
     );
 
-    const body = JSON.stringify({
+    return NextResponse.json({
       ...courseData,
       modules: modulesWithLessons,
-    });
-
-    return new Response(body, {
-      headers: { 'Content-Type': 'application/json; charset=utf-8' },
     });
   } catch (error) {
     console.error('Error fetching course:', error);
