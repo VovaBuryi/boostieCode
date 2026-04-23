@@ -13,6 +13,7 @@ import {
   Loader2,
   X,
   Edit,
+  GripVertical,
 } from 'lucide-react';
 import { Lesson } from '@/types';
 import LessonEditor from '@/components/LessonEditor';
@@ -273,6 +274,10 @@ export default function AdminCourseLessons({
   const [showLessonForm, setShowLessonForm] = useState(false);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [draggedLesson, setDraggedLesson] = useState<{
+    lessonId: string;
+    moduleId: string;
+  } | null>(null);
 
   const isMountedRef = useRef(true);
 
@@ -298,10 +303,15 @@ export default function AdminCourseLessons({
   }, [loadData]);
 
   const handleCreateModule = async (data: any) => {
+    const formData = new FormData();
+    formData.append('type', 'module');
+    formData.append('title', data.title);
+    formData.append('content', data.description || '');
+    formData.append('order_index', String(parseInt(data.order_index) || 0));
+
     await fetch(`/api/admin/courses/${resolvedParams.id}/items`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...data, type: 'module' }),
+      body: formData,
     });
     setShowModuleForm(false);
     loadData();
@@ -365,6 +375,86 @@ export default function AdminCourseLessons({
       { method: 'DELETE' },
     );
     loadData();
+  };
+
+  const handleLessonDrop = async (
+    targetModuleId: string,
+    targetLessonId: string,
+  ) => {
+    if (!draggedLesson) return;
+    if (draggedLesson.moduleId !== targetModuleId) {
+      setDraggedLesson(null);
+      return;
+    }
+    if (draggedLesson.lessonId === targetLessonId) {
+      setDraggedLesson(null);
+      return;
+    }
+
+    const sourceModule = modules.find((m) => m.id === targetModuleId);
+    if (!sourceModule?.lessons) {
+      setDraggedLesson(null);
+      return;
+    }
+
+    const oldLessons = [...sourceModule.lessons];
+    const fromIndex = oldLessons.findIndex(
+      (l) => l.id === draggedLesson.lessonId,
+    );
+    const toIndex = oldLessons.findIndex((l) => l.id === targetLessonId);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      setDraggedLesson(null);
+      return;
+    }
+
+    const reorderedLessons = [...oldLessons];
+    const [moved] = reorderedLessons.splice(fromIndex, 1);
+    reorderedLessons.splice(toIndex, 0, moved);
+
+    const lessonsWithOrder = reorderedLessons.map((lesson, index) => ({
+      ...lesson,
+      order_index: index,
+    }));
+
+    setModules((prev) =>
+      prev.map((module) =>
+        module.id === targetModuleId
+          ? { ...module, lessons: lessonsWithOrder }
+          : module,
+      ),
+    );
+
+    try {
+      await Promise.all(
+        lessonsWithOrder.map(async (lesson, index) => {
+          const formData = new FormData();
+          formData.append('type', 'lesson');
+          formData.append('itemId', lesson.id);
+          formData.append('title', lesson.title);
+          formData.append('content', lesson.content || '');
+          formData.append('video_url', lesson.video_url || '');
+          formData.append('order_index', String(index));
+          formData.append(
+            'duration_minutes',
+            lesson.duration_minutes?.toString() || '',
+          );
+
+          await fetch(
+            `/api/admin/courses/${resolvedParams.id}/items?type=lesson&itemId=${lesson.id}`,
+            {
+              method: 'PUT',
+              body: formData,
+            },
+          );
+        }),
+      );
+    } catch (error) {
+      console.error('Failed to reorder lessons:', error);
+      loadData();
+    } finally {
+      setDraggedLesson(null);
+    }
   };
 
   if (loading)
@@ -449,8 +539,19 @@ export default function AdminCourseLessons({
                       <div
                         key={lesson.id}
                         className='p-4 flex justify-between items-center'
+                        draggable
+                        onDragStart={() =>
+                          setDraggedLesson({
+                            lessonId: lesson.id,
+                            moduleId: module.id,
+                          })
+                        }
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleLessonDrop(module.id, lesson.id)}
+                        onDragEnd={() => setDraggedLesson(null)}
                       >
                         <div className='flex items-center gap-3'>
+                          <GripVertical className='h-4 w-4 text-gray-400 cursor-grab' />
                           <BookOpen className='h-4 w-4 text-indigo-600' />
                           <span>{lesson.title}</span>
                         </div>

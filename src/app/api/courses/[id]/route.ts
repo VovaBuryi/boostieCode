@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { query } from '@/lib/mysql-server';
 import { RowDataPacket } from 'mysql2/promise';
 
@@ -34,11 +36,17 @@ interface LessonRow extends RowDataPacket {
   updated_at: string;
 }
 
+interface LessonProgressRow extends RowDataPacket {
+  lesson_id: string;
+  completed: boolean;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
+  const session = await getServerSession(authOptions);
 
   try {
     const courseRows = await query<CourseRow[]>(
@@ -67,9 +75,32 @@ export async function GET(
       }),
     );
 
+    let modulesWithCompletion = modulesWithLessons;
+    if (session?.user?.id) {
+      const allLessonIds = modulesWithLessons.flatMap(m => m.lessons.map(l => l.id));
+      
+      if (allLessonIds.length > 0) {
+        const progressRows = await query<LessonProgressRow[]>(
+          `SELECT lesson_id, completed FROM lesson_progress 
+           WHERE user_id = ? AND lesson_id IN (?)`,
+          [session.user.id, allLessonIds]
+        );
+        
+        const progressMap = new Map(progressRows.map(p => [p.lesson_id, p.completed]));
+        
+        modulesWithCompletion = modulesWithLessons.map(module => ({
+          ...module,
+          lessons: module.lessons.map(lesson => ({
+            ...lesson,
+            completed: progressMap.get(lesson.id) || false,
+          })),
+        }));
+      }
+    }
+
     return NextResponse.json({
       ...courseData,
-      modules: modulesWithLessons,
+      modules: modulesWithCompletion,
     });
   } catch (error) {
     console.error('Error fetching course:', error);
