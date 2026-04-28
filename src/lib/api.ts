@@ -11,7 +11,11 @@ export async function fetchCourses(): Promise<Course[]> {
 export async function fetchCourse(id: string): Promise<CourseWithDetails> {
   const response = await fetch(`/api/courses/${id}`);
   if (!response.ok) {
-    throw new Error('Failed to fetch course');
+    const error = new Error('Failed to fetch course') as Error & {
+      status?: number;
+    };
+    error.status = response.status;
+    throw error;
   }
   return response.json();
 }

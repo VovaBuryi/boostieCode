@@ -13,7 +13,7 @@ import Link from 'next/link';
 export default function Home() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const loadCourses = useCallback(async () => {
@@ -31,8 +31,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     loadCourses();
-  }, [loadCourses]);
+  }, [authLoading, user, loadCourses]);
 
   const handleEnroll = async (courseId: string) => {
     if (!user) {
@@ -46,9 +53,9 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courseId }),
       });
-      
+
       console.log('Enroll response status:', res.status);
-      
+
       if (res.ok) {
         const data = await res.json();
         console.log('Enroll success:', data);
@@ -72,60 +79,80 @@ export default function Home() {
       <Navbar />
 
       <main className='max-w-7xl mx-auto px-4 py-8'>
-        <div className='mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900 mb-2'>
-            {isAdmin ? 'Панель адміністратора' : 'Доступні курси'}
-          </h1>
-          <p className='text-gray-600'>
-            {isAdmin
-              ? 'Керуйте курсами та матеріалами'
-              : 'Оберіть курс та почніть навчання'}
-          </p>
-        </div>
-
-        {isAdmin && (
-          <div className='mb-8 flex gap-4'>
-            <Link
-              href='/admin/courses'
-              className='flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition'
-            >
-              <PlusCircle className='h-5 w-5' />
-              Додати курс
-            </Link>
-            <Link
-              href='/admin'
-              className='flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition'
-            >
-              Керування курсами
-            </Link>
-          </div>
-        )}
-
-        {loading ? (
+        {authLoading || loading ? (
           <div className='flex items-center justify-center py-20'>
             <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600'></div>
           </div>
-        ) : courses.length === 0 ? (
+        ) : !user ? (
           <div className='text-center py-20'>
             <BookOpen className='h-16 w-16 text-gray-300 mx-auto mb-4' />
             <h2 className='text-xl font-semibold text-gray-600 mb-2'>
-              Курсів ще немає
+              Увійдіть, щоб бачити курси
             </h2>
-            <p className='text-gray-500'>
-              {isAdmin ? 'Створіть свій перший курс' : 'Перевірте пізніше'}
+            <p className='text-gray-500 mb-6'>
+              Неавторизованим користувачам курси не відображаються
             </p>
+            <Link
+              href='/login'
+              className='inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition'
+            >
+              Увійти
+            </Link>
           </div>
         ) : (
-          <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-            {courses.map((course) => (
-              <CourseCard
-                key={course.id}
-                course={course}
-                onEnroll={() => handleEnroll(course.id)}
-                isAdmin={isAdmin}
-              />
-            ))}
-          </div>
+          <>
+            <div className='mb-8'>
+              <h1 className='text-3xl font-bold text-gray-900 mb-2'>
+                {isAdmin ? 'Панель адміністратора' : 'Доступні курси'}
+              </h1>
+              <p className='text-gray-600'>
+                {isAdmin
+                  ? 'Керуйте курсами та матеріалами'
+                  : 'Оберіть курс та почніть навчання'}
+              </p>
+            </div>
+
+            {isAdmin && (
+              <div className='mb-8 flex gap-4'>
+                <Link
+                  href='/admin/courses'
+                  className='flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition'
+                >
+                  <PlusCircle className='h-5 w-5' />
+                  Додати курс
+                </Link>
+                <Link
+                  href='/admin'
+                  className='flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition'
+                >
+                  Керування курсами
+                </Link>
+              </div>
+            )}
+
+            {courses.length === 0 ? (
+              <div className='text-center py-20'>
+                <BookOpen className='h-16 w-16 text-gray-300 mx-auto mb-4' />
+                <h2 className='text-xl font-semibold text-gray-600 mb-2'>
+                  Курсів ще немає
+                </h2>
+                <p className='text-gray-500'>
+                  {isAdmin ? 'Створіть свій перший курс' : 'Перевірте пізніше'}
+                </p>
+              </div>
+            ) : (
+              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                {courses.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    course={course}
+                    onEnroll={() => handleEnroll(course.id)}
+                    isAdmin={isAdmin}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

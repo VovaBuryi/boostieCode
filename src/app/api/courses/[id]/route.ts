@@ -48,6 +48,10 @@ export async function GET(
   const { id } = await params;
   const session = await getServerSession(authOptions);
 
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const courseRows = await query<CourseRow[]>(
       'SELECT * FROM courses WHERE id = ?',
@@ -59,6 +63,17 @@ export async function GET(
     }
 
     const courseData = courseRows[0];
+
+    if (!session.user.isAdmin) {
+      const enrollmentRows = await query<RowDataPacket[]>(
+        'SELECT id FROM enrollments WHERE user_id = ? AND course_id = ? LIMIT 1',
+        [session.user.id, id],
+      );
+
+      if (enrollmentRows.length === 0) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
 
     const moduleRows = await query<ModuleRow[]>(
       'SELECT * FROM modules WHERE course_id = ? ORDER BY order_index ASC',
@@ -76,26 +91,28 @@ export async function GET(
     );
 
     let modulesWithCompletion = modulesWithLessons;
-    if (session?.user?.id) {
-      const allLessonIds = modulesWithLessons.flatMap(m => m.lessons.map(l => l.id));
-      
-      if (allLessonIds.length > 0) {
-        const progressRows = await query<LessonProgressRow[]>(
-          `SELECT lesson_id, completed FROM lesson_progress 
+    const allLessonIds = modulesWithLessons.flatMap((m) =>
+      m.lessons.map((l) => l.id),
+    );
+
+    if (allLessonIds.length > 0) {
+      const progressRows = await query<LessonProgressRow[]>(
+        `SELECT lesson_id, completed FROM lesson_progress 
            WHERE user_id = ? AND lesson_id IN (?)`,
-          [session.user.id, allLessonIds]
-        );
-        
-        const progressMap = new Map(progressRows.map(p => [p.lesson_id, p.completed]));
-        
-        modulesWithCompletion = modulesWithLessons.map(module => ({
-          ...module,
-          lessons: module.lessons.map(lesson => ({
-            ...lesson,
-            completed: progressMap.get(lesson.id) || false,
-          })),
-        }));
-      }
+        [session.user.id, allLessonIds],
+      );
+
+      const progressMap = new Map(
+        progressRows.map((p) => [p.lesson_id, p.completed]),
+      );
+
+      modulesWithCompletion = modulesWithLessons.map((courseModule) => ({
+        ...courseModule,
+        lessons: courseModule.lessons.map((lesson) => ({
+          ...lesson,
+          completed: progressMap.get(lesson.id) || false,
+        })),
+      }));
     }
 
     return NextResponse.json({

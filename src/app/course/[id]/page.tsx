@@ -6,6 +6,7 @@ import { CourseWithDetails, Lesson } from '@/types';
 import { fetchCourse } from '@/lib/api';
 import Navbar from '@/components/Navbar';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import VideoPlayer from '@/components/VideoPlayer';
 import {
   ArrowLeft,
@@ -23,6 +24,8 @@ export default function CoursePage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [course, setCourse] = useState<CourseWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,28 @@ export default function CoursePage({
           (module) => module.lessons.length > 0,
         );
 
-        if (firstModuleWithLesson) {
+        const lessonIdFromUrl = searchParams.get('lesson');
+        let selectedFromUrl: { lesson: Lesson; moduleId: string } | null = null;
+
+        if (lessonIdFromUrl) {
+          for (const courseModule of data.modules) {
+            const foundLesson = courseModule.lessons.find(
+              (lesson) => lesson.id === lessonIdFromUrl,
+            );
+            if (foundLesson) {
+              selectedFromUrl = {
+                lesson: foundLesson,
+                moduleId: courseModule.id,
+              };
+              break;
+            }
+          }
+        }
+
+        if (selectedFromUrl) {
+          setSelectedLesson(selectedFromUrl.lesson);
+          expandedMap[selectedFromUrl.moduleId] = true;
+        } else if (firstModuleWithLesson) {
           setSelectedLesson(firstModuleWithLesson.lessons[0]);
           expandedMap[firstModuleWithLesson.id] = true;
         }
@@ -95,12 +119,28 @@ export default function CoursePage({
         setLoading(false);
       }
     } catch (error) {
+      const status =
+        typeof error === 'object' &&
+        error !== null &&
+        'status' in error &&
+        typeof (error as { status?: unknown }).status === 'number'
+          ? ((error as { status: number }).status as number)
+          : undefined;
+
+      if (status === 401) {
+        const callbackUrl = encodeURIComponent(
+          window.location.pathname + window.location.search,
+        );
+        router.replace(`/login?callbackUrl=${callbackUrl}`);
+        return;
+      }
+
       console.error('Error loading course:', error);
       if (isMountedRef.current) {
         setLoading(false);
       }
     }
-  }, [resolvedParams.id]);
+  }, [resolvedParams.id, router, searchParams]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -113,6 +153,12 @@ export default function CoursePage({
   const handleLessonSelect = (lesson: Lesson, moduleId: string) => {
     setSelectedLesson(lesson);
     setExpandedModules((prev) => ({ ...prev, [moduleId]: true }));
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('lesson', lesson.id);
+    router.replace(`/course/${resolvedParams.id}?${params.toString()}`, {
+      scroll: false,
+    });
   };
 
   const toggleModule = (moduleId: string) => {
