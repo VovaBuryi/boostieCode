@@ -38,6 +38,7 @@ export default function CoursePage({
   const [expandedModules, setExpandedModules] = useState<
     Record<string, boolean>
   >({});
+  const [zoomedImageSrc, setZoomedImageSrc] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
 
@@ -116,6 +117,17 @@ export default function CoursePage({
 
   const toggleModule = (moduleId: string) => {
     setExpandedModules((prev) => ({ ...prev, [moduleId]: !prev[moduleId] }));
+  };
+
+  const handleLessonContentClick = (
+    e: React.MouseEvent<HTMLDivElement, MouseEvent>,
+  ) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName.toLowerCase() !== 'img') return;
+
+    const src = target.getAttribute('src');
+    if (!src) return;
+    setZoomedImageSrc(src);
   };
 
   const handleMarkComplete = async (lessonId: string) => {
@@ -199,147 +211,149 @@ export default function CoursePage({
   }
 
   return (
-    <div className='min-h-screen bg-gray-50'>
-      <Navbar />
+    <>
+      <div className='min-h-screen bg-gray-50'>
+        <Navbar />
 
-      <main className='max-w-7xl mx-auto px-4 py-8'>
-        <div className='mb-8'>
-          <Link
-            href='/'
-            className='inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4'
-          >
-            <ArrowLeft className='h-4 w-4' />
-            Назад до курсів
-          </Link>
-          <h1 className='text-3xl font-bold text-gray-900 mb-4'>
-            {course?.title}
-          </h1>
-          {course?.description && (
-            <p className='text-gray-600 mb-4'>{course.description}</p>
-          )}
+        <main className='max-w-7xl mx-auto px-4 py-8'>
+          <div className='mb-8'>
+            <Link
+              href='/'
+              className='inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4'
+            >
+              <ArrowLeft className='h-4 w-4' />
+              Назад до курсів
+            </Link>
+            <h1 className='text-3xl font-bold text-gray-900 mb-4'>
+              {course?.title}
+            </h1>
+            {course?.description && (
+              <p className='text-gray-600 mb-4'>{course.description}</p>
+            )}
 
-          <div className='bg-white rounded-lg p-4 shadow-sm'>
-            <div className='flex items-center justify-between mb-2'>
-              <span className='text-sm font-medium text-gray-700'>
-                Прогрес навчання
-              </span>
-              <span className='text-sm font-medium text-indigo-600'>
-                {progress.percentage}%
-              </span>
-            </div>
-            <div className='w-full bg-gray-200 rounded-full h-2.5'>
-              <div
-                className='bg-indigo-600 h-2.5 rounded-full transition-all'
-                style={{ width: `${progress.percentage}%` }}
-              ></div>
-            </div>
-            <div className='flex items-center gap-4 mt-2 text-sm text-gray-500'>
-              <span>
-                {progress.completedLessons} з {progress.totalLessons} уроків
-                пройдено
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
-          <div className='lg:col-span-1'>
-            <div className='bg-white rounded-lg shadow'>
-              <div className='px-4 py-3 border-b bg-gray-50'>
-                <h2 className='font-semibold text-gray-900'>Зміст курсу</h2>
+            <div className='bg-white rounded-lg p-4 shadow-sm'>
+              <div className='flex items-center justify-between mb-2'>
+                <span className='text-sm font-medium text-gray-700'>
+                  Прогрес навчання
+                </span>
+                <span className='text-sm font-medium text-indigo-600'>
+                  {progress.percentage}%
+                </span>
               </div>
-
-              <div className='divide-y max-h-[calc(100vh-250px)] overflow-y-auto'>
-                {course.modules.map((module) => (
-                  <div key={module.id}>
-                    <button
-                      type='button'
-                      onClick={() => toggleModule(module.id)}
-                      className='w-full px-4 py-3 bg-gray-50 font-medium text-gray-900 flex items-center justify-between hover:bg-gray-100 transition'
-                    >
-                      <span>{module.title}</span>
-                      {expandedModules[module.id] ? (
-                        <ChevronDown className='h-4 w-4 text-gray-500' />
-                      ) : (
-                        <ChevronRight className='h-4 w-4 text-gray-500' />
-                      )}
-                    </button>
-                    {expandedModules[module.id] && (
-                      <div>
-                        {module.lessons.map((lesson) => (
-                          <button
-                            key={lesson.id}
-                            onClick={() =>
-                              handleLessonSelect(lesson, module.id)
-                            }
-                            className={`w-full px-4 py-3 text-left hover:bg-gray-50 flex items-start gap-3 ${
-                              selectedLesson?.id === lesson.id
-                                ? 'bg-indigo-50'
-                                : ''
-                            }`}
-                          >
-                            <div className='mt-0.5'>
-                              {lessonProgress[lesson.id] ? (
-                                <CheckCircle className='h-5 w-5 text-green-500' />
-                              ) : (
-                                <Circle className='h-5 w-5 text-gray-400' />
-                              )}
-                            </div>
-                            <div className='flex-1'>
-                              <div className='font-medium text-gray-900'>
-                                {lesson.title}
-                              </div>
-                              {lesson.duration_minutes && (
-                                <div className='flex items-center gap-1 text-sm text-gray-500 mt-1'>
-                                  <Clock className='h-3 w-3' />
-                                  {lesson.duration_minutes} хв
-                                </div>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <div className='w-full bg-gray-200 rounded-full h-2.5'>
+                <div
+                  className='bg-indigo-600 h-2.5 rounded-full transition-all'
+                  style={{ width: `${progress.percentage}%` }}
+                ></div>
+              </div>
+              <div className='flex items-center gap-4 mt-2 text-sm text-gray-500'>
+                <span>
+                  {progress.completedLessons} з {progress.totalLessons} уроків
+                  пройдено
+                </span>
               </div>
             </div>
           </div>
 
-          <div className='lg:col-span-2'>
-            {selectedLesson ? (
+          <div className='grid grid-cols-1 lg:grid-cols-3 gap-8'>
+            <div className='lg:col-span-1'>
               <div className='bg-white rounded-lg shadow'>
-                <div className='px-6 py-4 border-b'>
-                  <h2 className='text-2xl font-bold text-gray-900'>
-                    {selectedLesson.title}
-                  </h2>
+                <div className='px-4 py-3 border-b bg-gray-50'>
+                  <h2 className='font-semibold text-gray-900'>Зміст курсу</h2>
                 </div>
 
-                <div className='p-6'>
-                  {selectedLesson.video_url ? (
-                    <VideoPlayer url={selectedLesson.video_url} />
-                  ) : (
-                    // <div className='aspect-video bg-gray-100 rounded-lg mb-6 flex items-center justify-center'>
-                    //   <BookOpen className='h-16 w-16 text-gray-400' />
-                    // </div>
-                    ''
-                  )}
-
-                  {selectedLesson.content && (
-                    <div className='prose max-w-none'>
-                      {/* <h3 className='text-lg font-semibold mb-2'>Опис уроку</h3> */}
-                      <div
-                        className='lesson-content text-gray-700'
-                        dangerouslySetInnerHTML={{
-                          __html: selectedLesson.content,
-                        }}
-                      />
+                <div className='divide-y max-h-[calc(100vh-250px)] overflow-y-auto'>
+                  {course.modules.map((module) => (
+                    <div key={module.id}>
+                      <button
+                        type='button'
+                        onClick={() => toggleModule(module.id)}
+                        className='w-full px-4 py-3 bg-gray-50 font-medium text-gray-900 flex items-center justify-between hover:bg-gray-100 transition'
+                      >
+                        <span>{module.title}</span>
+                        {expandedModules[module.id] ? (
+                          <ChevronDown className='h-4 w-4 text-gray-500' />
+                        ) : (
+                          <ChevronRight className='h-4 w-4 text-gray-500' />
+                        )}
+                      </button>
+                      {expandedModules[module.id] && (
+                        <div>
+                          {module.lessons.map((lesson) => (
+                            <button
+                              key={lesson.id}
+                              onClick={() =>
+                                handleLessonSelect(lesson, module.id)
+                              }
+                              className={`w-full px-4 py-3 text-left hover:bg-gray-50 flex items-start gap-3 ${
+                                selectedLesson?.id === lesson.id
+                                  ? 'bg-indigo-50'
+                                  : ''
+                              }`}
+                            >
+                              <div className='mt-0.5'>
+                                {lessonProgress[lesson.id] ? (
+                                  <CheckCircle className='h-5 w-5 text-green-500' />
+                                ) : (
+                                  <Circle className='h-5 w-5 text-gray-400' />
+                                )}
+                              </div>
+                              <div className='flex-1'>
+                                <div className='font-medium text-gray-900'>
+                                  {lesson.title}
+                                </div>
+                                {lesson.duration_minutes && (
+                                  <div className='flex items-center gap-1 text-sm text-gray-500 mt-1'>
+                                    <Clock className='h-3 w-3' />
+                                    {lesson.duration_minutes} хв
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
+                </div>
+              </div>
+            </div>
 
-                  <div className='mt-8 flex items-center justify-between border-t pt-6'>
-                    <div className='text-sm text-gray-500'>
-                      {/* {lessonProgress[selectedLesson.id] ? (
+            <div className='lg:col-span-2'>
+              {selectedLesson ? (
+                <div className='bg-white rounded-lg shadow'>
+                  <div className='px-6 py-4 border-b'>
+                    <h2 className='text-2xl font-bold text-gray-900'>
+                      {selectedLesson.title}
+                    </h2>
+                  </div>
+
+                  <div className='p-6'>
+                    {selectedLesson.video_url ? (
+                      <VideoPlayer url={selectedLesson.video_url} />
+                    ) : (
+                      // <div className='aspect-video bg-gray-100 rounded-lg mb-6 flex items-center justify-center'>
+                      //   <BookOpen className='h-16 w-16 text-gray-400' />
+                      // </div>
+                      ''
+                    )}
+
+                    {selectedLesson.content && (
+                      <div className='prose max-w-none'>
+                        {/* <h3 className='text-lg font-semibold mb-2'>Опис уроку</h3> */}
+                        <div
+                          className='lesson-content text-gray-700'
+                          onClick={handleLessonContentClick}
+                          dangerouslySetInnerHTML={{
+                            __html: selectedLesson.content,
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div className='mt-8 flex items-center justify-between border-t pt-6'>
+                      <div className='text-sm text-gray-500'>
+                        {/* {lessonProgress[selectedLesson.id] ? (
                         <span className='flex items-center gap-2 text-green-600'>
                           <CheckCircle className='h-5 w-5' />
                           Пройдено
@@ -350,46 +364,61 @@ export default function CoursePage({
                           Не пройдено
                         </span>
                       )} */}
-                    </div>
+                      </div>
 
-                    <button
-                      onClick={() => handleMarkComplete(selectedLesson.id)}
-                      disabled={lessonProgress[selectedLesson.id]}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                        lessonProgress[selectedLesson.id]
-                          ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                          : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                      }`}
-                    >
-                      {lessonProgress[selectedLesson.id] ? (
-                        <>
-                          <CheckCircle className='h-4 w-4' />
-                          Пройдено
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className='h-4 w-4' />
-                          Позначити як пройдене
-                        </>
-                      )}
-                    </button>
+                      <button
+                        onClick={() => handleMarkComplete(selectedLesson.id)}
+                        disabled={lessonProgress[selectedLesson.id]}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+                          lessonProgress[selectedLesson.id]
+                            ? 'bg-green-100 text-green-700 cursor-not-allowed'
+                            : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        }`}
+                      >
+                        {lessonProgress[selectedLesson.id] ? (
+                          <>
+                            <CheckCircle className='h-4 w-4' />
+                            Пройдено
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className='h-4 w-4' />
+                            Позначити як пройдене
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className='bg-white rounded-lg shadow p-12 text-center'>
-                <BookOpen className='h-16 w-16 text-gray-300 mx-auto mb-4' />
-                <h3 className='text-lg font-semibold text-gray-600 mb-2'>
-                  Оберіть урок
-                </h3>
-                <p className='text-gray-500'>
-                  Виберіть урок зі списку зліва, щоб почати навчання
-                </p>
-              </div>
-            )}
+              ) : (
+                <div className='bg-white rounded-lg shadow p-12 text-center'>
+                  <BookOpen className='h-16 w-16 text-gray-300 mx-auto mb-4' />
+                  <h3 className='text-lg font-semibold text-gray-600 mb-2'>
+                    Оберіть урок
+                  </h3>
+                  <p className='text-gray-500'>
+                    Виберіть урок зі списку зліва, щоб почати навчання
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
+        </main>
+      </div>
+
+      {zoomedImageSrc && (
+        <div
+          className='fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 cursor-zoom-out'
+          onClick={() => setZoomedImageSrc(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomedImageSrc || ''}
+            alt='Збільшене зображення'
+            className='max-w-full max-h-full object-contain rounded-lg shadow-2xl'
+          />
         </div>
-      </main>
-    </div>
+      )}
+    </>
   );
 }

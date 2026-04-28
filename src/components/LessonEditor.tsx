@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
+import Image from '@tiptap/extension-image';
 import {
   Bold,
   Italic,
@@ -14,6 +15,8 @@ import {
   Undo,
   Redo,
   Code,
+  ImagePlus,
+  Loader2,
 } from 'lucide-react';
 import React from 'react';
 
@@ -57,11 +60,19 @@ export default function LessonEditor({
   onChange,
   placeholder = 'Введіть вміст уроку...',
 }: LessonEditorProps) {
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: {
           levels: [2, 3],
+        },
+      }),
+      Image.configure({
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto my-4 cursor-zoom-in',
         },
       }),
       Placeholder.configure({
@@ -84,6 +95,45 @@ export default function LessonEditor({
   if (!editor) {
     return null;
   }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploading(true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/admin/uploads/lesson-image', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || 'Помилка завантаження');
+      }
+
+      if (result?.url) {
+        editor.chain().focus().setImage({ src: result.url }).run();
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Не вдалося завантажити файл';
+      alert(message);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   return (
     <div className='border border-gray-300 rounded-lg overflow-hidden'>
@@ -166,7 +216,26 @@ export default function LessonEditor({
         >
           <Redo className='h-4 w-4' />
         </ToolbarButton>
+        <div className='w-px h-8 bg-gray-300 mx-1' />
+        <ToolbarButton
+          onClick={handleUploadClick}
+          isActive={false}
+          title='Додати зображення'
+        >
+          {isUploading ? (
+            <Loader2 className='h-4 w-4 animate-spin' />
+          ) : (
+            <ImagePlus className='h-4 w-4' />
+          )}
+        </ToolbarButton>
       </div>
+      <input
+        ref={fileInputRef}
+        type='file'
+        accept='image/png,image/jpeg,image/webp,image/gif,image/svg+xml'
+        className='hidden'
+        onChange={handleFileSelected}
+      />
       <EditorContent
         editor={editor}
         className='prose prose-sm max-w-none p-4 min-h-[200px] focus:outline-none'
