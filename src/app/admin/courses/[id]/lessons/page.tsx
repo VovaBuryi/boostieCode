@@ -261,6 +261,131 @@ function LessonForm({
   );
 }
 
+interface ModuleAccordionProps {
+  module: Module;
+  onDeleteModule: (id: string) => void;
+  onDeleteLesson: (id: string) => void;
+  onEditLesson: (moduleId: string, lesson?: Lesson) => void;
+  selectedModule: string | null;
+  setSelectedModule: (id: string) => void;
+  setShowLessonForm: (show: boolean) => void;
+  editingLesson: Lesson | null;
+  onLessonDrop: (moduleId: string, lessonId: string) => void;
+  draggedLesson: { lessonId: string; moduleId: string } | null;
+  setDraggedLesson: (lesson: { lessonId: string; moduleId: string } | null) => void;
+  setEditingLesson: (lesson: Lesson | null) => void;
+}
+
+function ModuleAccordion({
+  module: moduleProp,
+  onDeleteModule,
+  onDeleteLesson,
+  onEditLesson,
+  selectedModule,
+  setSelectedModule,
+  setShowLessonForm,
+  editingLesson,
+  onLessonDrop,
+  draggedLesson,
+  setDraggedLesson,
+  setEditingLesson,
+}: ModuleAccordionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className='bg-white rounded-xl shadow border overflow-hidden'>
+      <div
+        className='px-6 py-4 bg-gray-50 flex justify-between items-center border-b cursor-pointer select-none hover:bg-gray-100 transition-colors'
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div className='flex items-center gap-3'>
+          <svg
+            className={`h-5 w-5 text-gray-400 transform transition-transform ${isOpen ? 'rotate-90' : ''}`}
+            fill='none'
+            stroke='currentColor'
+            viewBox='0 0 24 24'
+          >
+            <path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+          </svg>
+          <h2 className='text-lg md:text-xl font-bold'>{moduleProp.title}</h2>
+        </div>
+        <div className='flex gap-2'>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditLesson(moduleProp.id);
+            }}
+            className='px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition whitespace-nowrap'
+          >
+            Додати урок
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteModule(moduleProp.id);
+            }}
+            className='p-2 text-gray-400 hover:text-red-600 transition'
+          >
+            <Trash2 className='h-5 w-5' />
+          </button>
+        </div>
+      </div>
+      <div className={`overflow-hidden transition-all duration-200 ${isOpen ? 'max-h-96' : 'max-h-0'}`}>
+        <div className='divide-y'>
+          {(!moduleProp.lessons || moduleProp.lessons.length === 0) ? (
+            <p className='p-6 text-center text-gray-400 italic'>
+              Уроків немає
+            </p>
+          ) : (
+            moduleProp.lessons?.map((lesson) => (
+              <div
+                key={lesson.id}
+                className='p-4 flex justify-between items-center'
+                draggable
+                onDragStart={() => {
+                  setDraggedLesson({
+                    lessonId: lesson.id,
+                    moduleId: moduleProp.id,
+                  });
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => onLessonDrop(moduleProp.id, lesson.id)}
+                onDragEnd={() => setDraggedLesson(null)}
+              >
+                <div className='flex items-center gap-3'>
+                  <GripVertical className='h-4 w-4 text-gray-400 cursor-grab' />
+                  <BookOpen className='h-4 w-4 text-indigo-600' />
+                  <span>{lesson.title}</span>
+                </div>
+                <div className='flex gap-2'>
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       onEditLesson(moduleProp.id, lesson);
+                     }}
+                     className='text-gray-400 hover:text-indigo-600'
+                   >
+                     <Edit className='h-4 w-4' />
+                   </button>
+                   <button
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       onDeleteLesson(lesson.id);
+                     }}
+                     className='text-red-500 hover:text-red-700'
+                   >
+                     <Trash2 className='h-4 w-4' />
+                   </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminCourseLessons({
   params,
 }: {
@@ -318,7 +443,7 @@ export default function AdminCourseLessons({
   };
 
   const handleDeleteModule = async (id: string) => {
-    if (!confirm('В��далити модуль?')) return;
+    if (!confirm('Ви впевнені, що хочете видалити модуль?')) return;
     await fetch(
       `/api/admin/courses/${resolvedParams.id}/items?type=module&itemId=${id}`,
       { method: 'DELETE' },
@@ -366,6 +491,12 @@ export default function AdminCourseLessons({
     setShowLessonForm(false);
     setSelectedModule(null);
     setEditingLesson(null);
+  };
+
+  const handleShowLessonForm = (moduleId: string, lesson?: Lesson) => {
+    setSelectedModule(moduleId);
+    setEditingLesson(lesson || null);
+    setShowLessonForm(true);
   };
 
   const handleDeleteLesson = async (id: string) => {
@@ -505,79 +636,21 @@ export default function AdminCourseLessons({
         ) : (
           <div className='space-y-6'>
             {modules.map((module) => (
-              <div
+              <ModuleAccordion
                 key={module.id}
-                className='bg-white rounded-xl shadow border overflow-hidden'
-              >
-                <div className='px-6 py-4 bg-gray-50 flex justify-between items-center border-b'>
-                  <h2 className='text-xl font-bold'>{module.title}</h2>
-                  <div className='flex gap-2'>
-                    <button
-                      onClick={() => {
-                        setSelectedModule(module.id);
-                        setShowLessonForm(true);
-                      }}
-                      className='px-3 py-1.5 bg-green-600 text-white rounded text-sm'
-                    >
-                      Додати урок
-                    </button>
-                    <button
-                      onClick={() => handleDeleteModule(module.id)}
-                      className='p-2 text-gray-400 hover:text-red-600'
-                    >
-                      <Trash2 className='h-5 w-5' />
-                    </button>
-                  </div>
-                </div>
-                <div className='divide-y'>
-                  {(module?.lessons || []).length === 0 ? (
-                    <p className='p-6 text-center text-gray-400 italic'>
-                      Уроків немає
-                    </p>
-                  ) : (
-                    module.lessons?.map((lesson) => (
-                      <div
-                        key={lesson.id}
-                        className='p-4 flex justify-between items-center'
-                        draggable
-                        onDragStart={() =>
-                          setDraggedLesson({
-                            lessonId: lesson.id,
-                            moduleId: module.id,
-                          })
-                        }
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => handleLessonDrop(module.id, lesson.id)}
-                        onDragEnd={() => setDraggedLesson(null)}
-                      >
-                        <div className='flex items-center gap-3'>
-                          <GripVertical className='h-4 w-4 text-gray-400 cursor-grab' />
-                          <BookOpen className='h-4 w-4 text-indigo-600' />
-                          <span>{lesson.title}</span>
-                        </div>
-                        <div className='flex gap-2'>
-                          <button
-                            onClick={() => {
-                              setEditingLesson(lesson);
-                              setSelectedModule(module.id);
-                              setShowLessonForm(true);
-                            }}
-                            className='text-gray-400 hover:text-indigo-600'
-                          >
-                            <Edit className='h-4 w-4' />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteLesson(lesson.id)}
-                            className='text-red-500 hover:text-red-700'
-                          >
-                            <Trash2 className='h-4 w-4' />
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+                module={module}
+                onDeleteModule={handleDeleteModule}
+                onDeleteLesson={handleDeleteLesson}
+                onEditLesson={handleShowLessonForm}
+                selectedModule={selectedModule}
+                setSelectedModule={setSelectedModule}
+                setShowLessonForm={setShowLessonForm}
+                editingLesson={editingLesson}
+                onLessonDrop={handleLessonDrop}
+                draggedLesson={draggedLesson}
+                setDraggedLesson={setDraggedLesson}
+                setEditingLesson={setEditingLesson}
+              />
             ))}
           </div>
         )}
